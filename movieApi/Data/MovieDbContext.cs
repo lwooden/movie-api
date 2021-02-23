@@ -14,6 +14,7 @@ namespace movieApi.Data
 
         }
 
+        // These properties determine the names of the tables that will be created in my database
         public DbSet<Movie> Movies { get; set; }
     }
 }
