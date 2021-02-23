@@ -6,11 +6,13 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using movieApi.Data;
 
 namespace movieApi
 {
@@ -28,6 +30,10 @@ namespace movieApi
         {
 
             services.AddControllers();
+            services.AddMvc().AddXmlSerializerFormatters();
+            services.AddDbContext<MovieDbContext>(options =>
+                options.UseSqlServer(
+                    @"Data Source= (localdb)\MSSQLLocalDB;Initial Catalog=MovieDb;Integrated Security= True"));
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "movieApi", Version = "v1" });
@@ -35,7 +41,7 @@ namespace movieApi
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, MovieDbContext dbContext)
         {
             if (env.IsDevelopment())
             {
@@ -49,6 +55,7 @@ namespace movieApi
             app.UseRouting();
 
             app.UseAuthorization();
+            dbContext.Database.EnsureCreated();
 
             app.UseEndpoints(endpoints =>
             {
