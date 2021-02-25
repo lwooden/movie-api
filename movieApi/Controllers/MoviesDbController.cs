@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -58,25 +60,47 @@ namespace movieApi.Controllers
 
         // POST api/<MovieDbController>
         [HttpPost]
-        public IActionResult Post([FromBody] Movie movieObj)
+        public IActionResult Post([FromForm] Movie movieObj)
         {
-            var nameExists = _dbContext.Movies.FirstOrDefault(m => m.Name == movieObj.Name);
-            Console.WriteLine(nameExists);
+            var guid = Guid.NewGuid();
+            var filePath = Path.Combine("wwwroot", guid + ".jpg");
 
-            if (nameExists.Name == movieObj.Name)
+            if (movieObj.Image != null)
             {
-
-                return StatusCode(StatusCodes.Status409Conflict, "Something Went Wrong!");
+                var fileStream = new FileStream(filePath, FileMode.Create);
+                movieObj.Image.CopyTo(fileStream);
             }
 
+            movieObj.ImageUrl = filePath.Remove(0, 7);
             _dbContext.Movies.Add(movieObj);
             _dbContext.SaveChanges();
-            Console.WriteLine("Added {0} to the database!", movieObj.Name);
+
             return StatusCode(StatusCodes.Status201Created);
 
-            
+
         }
 
+        //<-- Version 2 -->
+        //public IActionResult Post([FromBody] Movie movieObj)
+        //{
+        //    var nameExists = _dbContext.Movies.FirstOrDefault(m => m.Name == movieObj.Name);
+        //    Console.WriteLine(nameExists);
+
+        //    if (nameExists.Name == movieObj.Name)
+        //    {
+
+        //        return StatusCode(StatusCodes.Status409Conflict, "Something Went Wrong!");
+        //    }
+
+        //    _dbContext.Movies.Add(movieObj);
+        //    _dbContext.SaveChanges();
+        //    Console.WriteLine("Added {0} to the database!", movieObj.Name);
+        //    return StatusCode(StatusCodes.Status201Created);
+
+
+        //}
+
+        //<-- Version 1 -->
         //public void Post([FromBody] Movie movieObj)
         //{
         //    _dbContext.Movies.Add(movieObj);
@@ -99,6 +123,7 @@ namespace movieApi.Controllers
             {
                 movie.Name = movieObj.Name;
                 movie.Language = movieObj.Language;
+                movie.Rating = movieObj.Rating;
                 _dbContext.SaveChanges();
                 return Ok("Record Updated Successfully!");
 
