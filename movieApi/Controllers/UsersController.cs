@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using AuthenticationPlugin;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -7,6 +8,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using movieApi.Data;
 using movieApi.Models;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.JsonWebTokens;
+using System.Security.Claims;
 
 namespace movieApi.Controllers
 {
@@ -16,9 +20,16 @@ namespace movieApi.Controllers
     {
         private MovieDbContext _dbContext;
 
-        public UsersController(MovieDbContext dbContext)
+        private IConfiguration _configuration;
+        private readonly AuthService _auth;
+
+        // controller constructor
+        // all configuration of the controller is done here at runtime
+        public UsersController(MovieDbContext dbContext, IConfiguration configuration)
         {
             _dbContext = dbContext;
+            _configuration = configuration;
+            _auth = new AuthService(_configuration);
 
         }
 
@@ -41,7 +52,7 @@ namespace movieApi.Controllers
         }
 
 
-            [HttpPost]
+        [HttpPost]
         public IActionResult Register([FromBody] User user)
         {
             var emailExists = _dbContext.User.Where(u => u.Email == user.Email).SingleOrDefault();
@@ -55,7 +66,7 @@ namespace movieApi.Controllers
             {
                 Name = user.Name,
                 Email = user.Email,
-                Password = user.Password,
+                Password = SecurePasswordHasherHelper.Hash(user.Password), // hash plaintext password before saving to database
                 Role = "Users"
 
             };
@@ -64,6 +75,53 @@ namespace movieApi.Controllers
             _dbContext.SaveChanges();
 
             return StatusCode(StatusCodes.Status201Created);
+
+        }
+
+        [HttpPost]
+        public IActionResult Login([FromBody] User user)
+        {
+            // get the user from the db
+            var userEmail = _dbContext.User.Where(u => u.Email == user.Email).SingleOrDefault();
+
+
+            // if user was not found, return notFound
+            if (userEmail == null)
+            {
+                return NotFound();
+            }
+
+            // if plaintext password doesn't match hashed password, return unauthorized
+            if (!SecurePasswordHasherHelper.Verify(user.Password, userEmail.Password))
+            {
+                return Unauthorized();
+            }
+
+            // otherwise, generate JWT Token
+
+            var claims = new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim(ClaimTypes.Email, user.Email),
+
+                // add role metadata to claim so it can be used for authorization for each request
+                new Claim(ClaimTypes.Role, userEmail.Role) 
+            };
+
+            var token = _auth.GenerateAccessToken(claims);
+
+            // return token to the client
+            return new ObjectResult(new
+            {
+                access_token = token.AccessToken,
+                expires_in = token.ExpiresIn,
+                token_type = token.TokenType,
+                creation_time = token.ValidFrom,
+                expiration_time = token.ValidTo,
+                user_id = userEmail.Id
+
+            });
+
 
         }
     }
