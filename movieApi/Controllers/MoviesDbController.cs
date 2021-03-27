@@ -31,13 +31,20 @@ namespace movieApi.Controllers
 
         [Authorize]
         [HttpGet("[action]")]
-        public IActionResult AllMovies(string sort)
+        public IActionResult AllMovies(string sort, int? pageNumber, int? pageSize)
         {
             // this style returns every property for every movie; I don't need all of the properties
             //return Ok(_dbContext.Movies);
 
             // instead loop through all of the movies returned from the db and only get the values that I really need instead
             // of returning the entire dataset
+
+            // int? syntax marks a parameter as "nullable"
+
+            // sets default values in case no values are sent by the caller
+            // functions kind of like a ternary operator
+            var currentPageNumber = pageNumber ?? 1;
+            var currentPageSize = pageSize ?? 3;
 
             var movies = from movie in _dbContext.Movies
             select new
@@ -51,19 +58,43 @@ namespace movieApi.Controllers
                 ImageUrl = movie.ImageUrl
             };
 
+            // implement paging using Skip & Take Algorithm
+            // pageSize = number of elements per page to display
+
             switch (sort)
             {
                 case "desc":
-                    return Ok(movies.OrderByDescending(m => m.Rating));
+                    return Ok(movies.Skip((currentPageNumber - 1) * currentPageSize).Take(currentPageSize).OrderByDescending(m => m.Rating));
                 case "asc":
-                    return Ok(movies.OrderBy(m => m.Rating));
+                    return Ok(movies.Skip((currentPageNumber - 1) * currentPageSize).Take(currentPageSize).OrderBy(m => m.Rating));
                 default:
-                    return Ok(movies);
+                    return Ok(movies.Skip((currentPageNumber - 1) * currentPageSize).Take(currentPageSize));
 
             }
 
             //return Ok(movies);
         }
+
+
+        [HttpGet("[action]")]
+        public IActionResult FindMovies(string searchTerm)
+        {
+            // sql style query that queries the database within the specific context with these conditions and saves the results to a variable
+            var movies = from movie in _dbContext.Movies
+                         where movie.Name.StartsWith(searchTerm)
+                         select new
+                         {
+                             Id = movie.Id,
+                             Name = movie.Name,
+                             ImageUrl = movie.ImageUrl
+                         };
+
+            return Ok(movies);
+
+
+        }
+
+
         // GET: api/<MovieDbController>
         [HttpGet]
 
