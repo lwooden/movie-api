@@ -11,7 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 using movieApi.Data;
 using movieApi.Models;
 using Microsoft.AspNetCore.Authorization;
-
+using Microsoft.Extensions.Logging;
 
 namespace movieApi.Controllers
 {
@@ -19,15 +19,22 @@ namespace movieApi.Controllers
     [ApiController]
     public class MoviesDbController : ControllerBase
     {
+        protected readonly ILogger<MoviesDbController> _logger; // create ILogger property of type controller
         private MovieDbContext _dbContext;
 
-        public MoviesDbController(MovieDbContext dbContext)
+        public MoviesDbController(MovieDbContext dbContext, ILogger<MoviesDbController> logger)
         {
+            _logger = logger; // add ILogger as a parameter in the constructor and initialize it
             _dbContext = dbContext;
+
 
         }
 
-        // IActionResult allows me to send status codes back in addition to an object(like our list of Movies)
+        /** 
+         * 
+         IActionResult allows me to send status codes back in addition to an object(like our list of Movies) in the form of a response
+        
+         **/
 
         [Authorize]
         [HttpGet("[action]")]
@@ -100,6 +107,7 @@ namespace movieApi.Controllers
 
         public IActionResult Get()
         {
+            _logger.LogInformation("Getting all movies!");
             return Ok(_dbContext.Movies);
             //return BadRequest()
             //return NotFound()
@@ -118,6 +126,7 @@ namespace movieApi.Controllers
 
             if (movie == null)
             {
+                _logger.LogWarning("Movie does not appear to exist!");
                 return NotFound();
             }
 
